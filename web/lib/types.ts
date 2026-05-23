@@ -15,6 +15,14 @@ export type Zone = {
     open_gates: string[];
   };
   receiving_redirect_from?: string;
+  active_dispatch?: {
+    kind: string;
+    zone: string;
+    units: number;
+    severity: string;
+    eta_seconds: number;
+  };
+  lockdown?: { active: boolean; reason: string };
 };
 
 export type Decision = {
@@ -30,6 +38,20 @@ export type Decision = {
 export type StateResponse = {
   zones: Zone[];
   decisions: Decision[];
+};
+
+export type AgentHealth = {
+  name: string;
+  label: string;
+  url: string | null;
+  online: boolean;
+  latency_ms: number | null;
+};
+
+export type AgentsResponse = {
+  deployed: number;
+  online: number;
+  agents: AgentHealth[];
 };
 
 export const ALL_ZONES = [

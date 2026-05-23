@@ -76,7 +76,7 @@ export function Stadium({ zones }: { zones: Zone[] }) {
       <line x1={CENTER} y1={CENTER - 30} x2={CENTER} y2={CENTER + 30} stroke="#fde68a" strokeOpacity={0.7} strokeWidth={3} />
       <circle cx={CENTER} cy={CENTER} r={4} fill="#fde68a" opacity={0.8} />
 
-      {/* Stand segments */}
+      {/* Stand segments + state badges */}
       {ALL_ZONES.map((zoneId, i) => {
         const startAngle = i * 45 - 22.5;
         const endAngle = startAngle + 45;
@@ -84,17 +84,44 @@ export function Stadium({ zones }: { zones: Zone[] }) {
         const fill = occColor(z?.occupancy);
         const pressure = z?.pressure_index ?? 0;
         const dangerous = pressure >= 0.6;
+        const atRisk = !!z?.active_route_plan;
+        const receiving = !!z?.receiving_redirect_from;
+        const dispatched = !!z?.active_dispatch;
+        const badge = atRisk
+          ? { text: "AT RISK", color: "#ef4444" }
+          : dispatched
+            ? { text: "DISPATCH", color: "#f59e0b" }
+            : receiving
+              ? { text: "REDIRECT IN", color: "#0ea5e9" }
+              : null;
+        const [bx, by] = polar(i * 45, (SEGMENT_OUTER + SEGMENT_INNER) / 2 + 6);
 
         return (
-          <path
-            key={`seg-${zoneId}`}
-            d={arcPath(startAngle, endAngle)}
-            fill={fill}
-            stroke="var(--bg)"
-            strokeWidth={2}
-            opacity={z?.occupancy === undefined ? 0.55 : 1}
-            className={dangerous ? "danger-pulse" : undefined}
-          />
+          <g key={`seg-${zoneId}`}>
+            <path
+              d={arcPath(startAngle, endAngle)}
+              fill={fill}
+              stroke="var(--bg)"
+              strokeWidth={2}
+              opacity={z?.occupancy === undefined ? 0.55 : 1}
+              className={dangerous ? "danger-pulse" : undefined}
+            />
+            {badge && (
+              <text
+                x={bx}
+                y={by}
+                fontSize={7.5}
+                fontWeight={800}
+                letterSpacing={0.6}
+                textAnchor="middle"
+                fill={badge.color}
+                dominantBaseline="middle"
+                style={{ paintOrder: "stroke", stroke: "var(--bg)", strokeWidth: 2.5 }}
+              >
+                {badge.text}
+              </text>
+            )}
+          </g>
         );
       })}
 
