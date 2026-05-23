@@ -5,18 +5,17 @@ steps:
     args:
       - build
       - -t
-      - ${_IMAGE}
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/stadiumos/crowd-vision:latest
       - -f
       - agents/crowd-vision/Dockerfile
       - .
   - name: gcr.io/cloud-builders/docker
-    args: [push, '${_IMAGE}']
+    args:
+      - push
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/stadiumos/crowd-vision:latest
 
 images:
-  - ${_IMAGE}
-
-substitutions:
-  _IMAGE: asia-south1-docker.pkg.dev/${PROJECT_ID}/stadiumos/crowd-vision:latest
+  - asia-south1-docker.pkg.dev/$PROJECT_ID/stadiumos/crowd-vision:latest
 
 options:
   logging: CLOUD_LOGGING_ONLY

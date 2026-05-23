@@ -1,0 +1,33 @@
+# Keep cloud-build context small. Mirrors .gitignore plus a few extras.
+.git/
+.gitignore
+.claude/
+.venv/
+venv/
+node_modules/
+.next/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Hackathon source slides (not code)
+IMG_*.JPG
+IMG_*.jpg
+
+# Terraform local state
+infra/.terraform/
+infra/*.tfstate*
+infra/tfplan
+
+# Editor noise
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Anything from local runs
+*.log
