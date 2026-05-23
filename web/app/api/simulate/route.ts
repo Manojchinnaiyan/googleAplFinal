@@ -1,3 +1,5 @@
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import { NextResponse } from "next/server";
 import { bearerHeader } from "@/lib/auth";
 import { db } from "@/lib/firestore";
@@ -7,6 +9,19 @@ import { rateLimited } from "@/lib/ratelimit";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 const SIMULATE_COOLDOWN_MS = 30000;
+
+// Read the sample image once per cold start and base64-encode it. We tried
+// passing image_url to Crowd Vision but the agent's httpx GET back into the
+// dashboard's /public/ URL failed with httpx.ConnectError: SSL
+// WRONG_VERSION_NUMBER — Cloud Run's internal TLS handshake. Inlining the
+// bytes avoids the network hop entirely.
+let _sampleB64: string | null = null;
+async function sampleImageB64(): Promise<string> {
+  if (_sampleB64) return _sampleB64;
+  const buf = await fs.readFile(path.join(process.cwd(), "public", "sample-frame.jpg"));
+  _sampleB64 = buf.toString("base64");
+  return _sampleB64;
+}
 
 // Plays back a "pre-crime stampede" sequence over ~20 seconds:
 //   - 8 CrowdDensity events on `crowd.density` (Pub/Sub push -> Commander reacts)
@@ -57,43 +72,58 @@ export async function POST(req: Request): Promise<NextResponse> {
 
   // Pull all 5 agents into the chain on a single click:
   //
-  // 1. Crowd Vision: fire-and-forget POST to /analyze with a sample frame
-  //    bundled in /public. Gemini Vision analyses it; the agent publishes
-  //    its own crowd.density + agent.decision rows. Takes ~10-15s but
-  //    runs in parallel with the synthetic frame timeline below.
+  // 1. Crowd Vision: fire-and-forget POST to /analyze with the sample frame
+  //    inlined as base64. Gemini Vision analyses it; the agent publishes
+  //    its own crowd.density + agent.decision rows. Runs in parallel with
+  //    the synthetic-frame timeline below.
   const crowdVisionUrl = process.env.CROWD_VISION_URL;
+  let crowdVisionKicked = false;
   if (crowdVisionUrl) {
-    const origin = new URL(req.url).origin;
-    fetch(`${crowdVisionUrl.replace(/\/$/, "")}/analyze`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...bearerHeader() },
-      body: JSON.stringify({
-        zone,
-        source_camera: camera,
-        image_url: `${origin}/sample-frame.jpg`,
-      }),
-      signal: AbortSignal.timeout(45_000),
-    }).catch(() => {
-      /* don't fail the simulator if Crowd Vision is slow */
-    });
+    try {
+      const imageB64 = await sampleImageB64();
+      fetch(`${crowdVisionUrl.replace(/\/$/, "")}/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...bearerHeader() },
+        body: JSON.stringify({
+          zone,
+          source_camera: camera,
+          image_b64: imageB64,
+          mime_type: "image/jpeg",
+        }),
+        signal: AbortSignal.timeout(60_000),
+      }).then(
+        (r) => console.log(`[simulate] crowd-vision /analyze: ${r.status}`),
+        (e) => console.error(`[simulate] crowd-vision /analyze failed:`, e),
+      );
+      crowdVisionKicked = true;
+    } catch (e) {
+      console.error(`[simulate] failed to load sample frame:`, e);
+    }
   }
 
   // 2. Ticketing: two gate.event anomalies — a duplicate scan from a shared
-  //    QR plus a throughput drop on a backed-up gate. Gives Ticketing a
-  //    reason to log + request more staff at that gate.
+  //    QR plus a throughput drop on a backed-up gate. Awaited so a publish
+  //    error fails loudly instead of silently disappearing into .catch().
   const tsNow = new Date().toISOString();
-  publish("gate.event", {
-    gate_id: "gate_3",
-    event: "scan_dup",
-    ticket_id: "T-9921",
-    ts: tsNow,
-  }).catch(() => {});
-  publish("gate.event", {
-    gate_id: "gate_4",
-    event: "throughput",
-    throughput_per_min: 80,
-    ts: tsNow,
-  }).catch(() => {});
+  let gateEventsPublished = 0;
+  try {
+    await publish("gate.event", {
+      gate_id: "gate_3",
+      event: "scan_dup",
+      ticket_id: "T-9921",
+      ts: tsNow,
+    });
+    gateEventsPublished++;
+    await publish("gate.event", {
+      gate_id: "gate_4",
+      event: "throughput",
+      throughput_per_min: 80,
+      ts: tsNow,
+    });
+    gateEventsPublished++;
+  } catch (e) {
+    console.error(`[simulate] gate.event publish failed:`, e);
+  }
 
   const messageIds: string[] = [];
   let emergencyFired = false;
@@ -149,8 +179,8 @@ export async function POST(req: Request): Promise<NextResponse> {
     frames_published: FRAMES.length,
     emergency_fired: emergencyFired,
     message_ids: messageIds,
-    crowd_vision_kicked: Boolean(crowdVisionUrl),
-    gate_events_published: 2,
+    crowd_vision_kicked: crowdVisionKicked,
+    gate_events_published: gateEventsPublished,
     note: "Crowd Vision analyses a real frame, Ticketing reacts to gate anomalies, "
         + "Commander delegates to Flow Router, Emergency dispatches responders. "
         + "All 5 agents appear in the feed.",

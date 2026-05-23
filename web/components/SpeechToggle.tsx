@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Decision } from "@/lib/types";
+import { pickVoice, waitForVoices } from "@/lib/voices";
 
 type Props = {
   enabled: boolean;
@@ -17,38 +18,51 @@ const AGENT_PROSE: Record<string, string> = {
   ticketing: "Ticketing",
 };
 
-// Read aloud: "<agent>: <input_summary>. <reasoning>".
 function decisionToSpeech(d: Decision): string {
   const who = AGENT_PROSE[d.agent] ?? d.agent;
   return `${who}: ${d.input_summary}. ${d.reasoning}`;
 }
 
 export function SpeechToggle({ enabled, setEnabled, decisions }: Props) {
-  // Track which decision ids we've already spoken so toggling on doesn't
-  // replay the entire backlog, and re-fetches don't spam.
   const spokenIds = useRef<Set<string>>(new Set());
   const queueRef = useRef<string[]>([]);
   const speakingRef = useRef(false);
+  const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const [voiceName, setVoiceName] = useState<string>("");
 
-  // Seed the "already spoken" set with whatever's on screen when speech is
-  // first switched on — only NEW decisions after that point get read.
+  // Resolve the best available voice once the browser publishes the list.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    waitForVoices().then((voices) => {
+      const v = pickVoice(voices);
+      voiceRef.current = v;
+      setVoiceName(v ? `${v.name} (${v.lang})` : "");
+    });
+  }, []);
+
+  // Seed already-spoken with the snapshot present when speech was turned on,
+  // so we don't replay the backlog.
   useEffect(() => {
     if (enabled && spokenIds.current.size === 0) {
       decisions.forEach((d) => spokenIds.current.add(d.id));
     }
   }, [enabled, decisions]);
 
-  // Drain the queue one utterance at a time (Web Speech can chunk badly if
-  // you submit several at once; queueing is far smoother).
   function drain() {
     if (speakingRef.current) return;
     const next = queueRef.current.shift();
     if (!next) return;
     speakingRef.current = true;
     const utter = new SpeechSynthesisUtterance(next);
-    utter.rate = 1.05;
+    if (voiceRef.current) {
+      utter.voice = voiceRef.current;
+      utter.lang = voiceRef.current.lang;
+    } else {
+      utter.lang = "en-IN";
+    }
+    utter.rate = 1.0;
     utter.pitch = 1.0;
-    utter.lang = "en-IN";
+    utter.volume = 1.0;
     utter.onend = () => {
       speakingRef.current = false;
       drain();
@@ -60,8 +74,6 @@ export function SpeechToggle({ enabled, setEnabled, decisions }: Props) {
   useEffect(() => {
     if (!enabled) return;
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    // New decisions arrive at index 0 (newest-first). Walk from the end so
-    // we speak them in chronological order.
     const news: Decision[] = [];
     for (let i = decisions.length - 1; i >= 0; i--) {
       const d = decisions[i];
@@ -75,7 +87,6 @@ export function SpeechToggle({ enabled, setEnabled, decisions }: Props) {
     drain();
   }, [decisions, enabled]);
 
-  // When disabled, cancel anything mid-utterance and drop the queue.
   useEffect(() => {
     if (enabled) return;
     if (typeof window === "undefined") return;
@@ -90,7 +101,11 @@ export function SpeechToggle({ enabled, setEnabled, decisions }: Props) {
       onClick={() => setEnabled(!enabled)}
       data-themed
       className="inline-flex items-center gap-2 h-8 px-3 rounded-full border border-[var(--border)] bg-[var(--card)] text-xs font-medium text-[var(--fg)] hover:bg-[var(--card-soft)] transition"
-      title={enabled ? "Mute spoken alerts" : "Speak agent decisions aloud"}
+      title={
+        enabled
+          ? `Speaking via ${voiceName || "default voice"}. Click to mute.`
+          : "Click to speak agent decisions aloud."
+      }
       aria-pressed={enabled}
     >
       {enabled ? (

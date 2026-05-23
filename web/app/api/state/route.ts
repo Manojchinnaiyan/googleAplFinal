@@ -11,7 +11,7 @@ export async function GET(): Promise<NextResponse> {
     Promise.all(
       ALL_ZONES.map((z) => client.collection("zones").doc(z).get()),
     ),
-    client.collection("decisions").orderBy("ts", "desc").limit(25).get(),
+    client.collection("decisions").orderBy("ts", "desc").limit(50).get(),
   ]);
 
   const zones: Zone[] = zoneSnaps.map((snap, i) => ({
