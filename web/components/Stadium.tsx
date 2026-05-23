@@ -3,10 +3,11 @@
 import { ALL_ZONES, type Zone } from "@/lib/types";
 
 const CENTER = 220;
-const SEGMENT_OUTER = 195;
-const SEGMENT_INNER = 110;
-const ARROW_RADIUS = 145;
-const LABEL_RADIUS = 210;
+const SEGMENT_OUTER = 175;
+const SEGMENT_INNER = 100;
+const ARROW_RADIUS = 130;
+const LABEL_RADIUS = 198;
+const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const;
 
 function occColor(o: number | undefined): string {
   if (o === undefined || o === null) return "var(--occ-empty)";
@@ -33,12 +34,6 @@ function arcPath(startAngle: number, endAngle: number): string {
     `A ${SEGMENT_INNER} ${SEGMENT_INNER} 0 0 0 ${x1i} ${y1i}`,
     "Z",
   ].join(" ");
-}
-
-function prettyZone(zone: string): { line1: string; line2: string } {
-  const parts = zone.replace("_stand", "").split("_");
-  if (parts.length === 1) return { line1: parts[0].toUpperCase(), line2: "" };
-  return { line1: parts.join(" ").toUpperCase(), line2: "" };
 }
 
 export function Stadium({ zones }: { zones: Zone[] }) {
@@ -132,37 +127,35 @@ export function Stadium({ zones }: { zones: Zone[] }) {
         });
       })}
 
-      {/* Labels — placed OUTSIDE the ring so they never overlap segments */}
+      {/* Compass-rose labels INSIDE the outer segment edge so they never clip.
+          We use 2-letter compass codes (N, NE, E, …) — the full zone name is
+          available in the activity feed and tooltips. */}
       {ALL_ZONES.map((zoneId, i) => {
         const z = byId.get(zoneId);
         const angle = i * 45;
         const [lx, ly] = polar(angle, LABEL_RADIUS);
-        const { line1 } = prettyZone(zoneId);
         const occ = z?.occupancy;
         const occText = occ !== undefined ? `${Math.round(occ * 100)}%` : "—";
-
-        // Push labels at the corners slightly out so they don't crowd the ring.
-        const anchor = angle === 0 || angle === 180 ? "middle" : angle < 180 ? "start" : "end";
-
         return (
           <g key={`label-${zoneId}`}>
+            <title>{zoneId}</title>
             <text
               x={lx}
-              y={ly}
+              y={ly - 5}
               fontSize={11}
               fontWeight={700}
-              letterSpacing={0.8}
-              textAnchor={anchor}
+              letterSpacing={0.5}
+              textAnchor="middle"
               fill="var(--fg)"
               dominantBaseline="middle"
             >
-              {line1}
+              {COMPASS[i]}
             </text>
             <text
               x={lx}
-              y={ly + 14}
-              fontSize={10}
-              textAnchor={anchor}
+              y={ly + 9}
+              fontSize={9}
+              textAnchor="middle"
               fill="var(--muted)"
               fontFamily="var(--font-geist-mono)"
               dominantBaseline="middle"

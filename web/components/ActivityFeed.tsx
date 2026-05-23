@@ -36,6 +36,12 @@ const AGENT_META: Record<
     bg: "rgba(245, 158, 11, 0.16)",
     fg: "#fbbf24",
   },
+  ticketing: {
+    label: "TK",
+    full: "Ticketing",
+    bg: "rgba(244, 114, 182, 0.18)",
+    fg: "#f472b6",
+  },
 };
 
 function relativeTime(iso: string | undefined): string {

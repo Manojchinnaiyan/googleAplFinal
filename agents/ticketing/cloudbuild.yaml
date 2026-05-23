@@ -1,0 +1,21 @@
+# Build the Ticketing container. Run from repo root:
+#   gcloud builds submit --config agents/ticketing/cloudbuild.yaml .
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/stadiumos/ticketing:latest
+      - -f
+      - agents/ticketing/Dockerfile
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/stadiumos/ticketing:latest
+
+images:
+  - asia-south1-docker.pkg.dev/$PROJECT_ID/stadiumos/ticketing:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

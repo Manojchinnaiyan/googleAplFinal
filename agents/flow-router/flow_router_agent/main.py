@@ -5,10 +5,11 @@ from __future__ import annotations
 import os
 
 import structlog
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from google.adk.agents.run_config import RunConfig
 from google.adk.runners import InMemoryRunner
 from google.genai import types
+from stadiumos_shared import require_bearer
 
 from flow_router_agent.agent import flow_router
 
@@ -37,7 +38,7 @@ def health() -> dict:
     return {"status": "ok", "agent": "flow-router"}
 
 
-@app.post("/invoke")
+@app.post("/invoke", dependencies=[Depends(require_bearer)])
 async def invoke(payload: dict) -> dict:
     """Receive a routing task (typically from the Commander) and execute it."""
     task = payload.get("task") or payload.get("message")

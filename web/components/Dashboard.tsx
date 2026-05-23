@@ -13,6 +13,7 @@ export function Dashboard() {
   const [state, setState] = useState<StateResponse>({ zones: [], decisions: [] });
   const [error, setError] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
+  const [monitoring, setMonitoring] = useState(true);
 
   const refresh = useCallback(async () => {
     try {
@@ -25,11 +26,17 @@ export function Dashboard() {
     }
   }, []);
 
+  // Always do one initial fetch so the dashboard isn't empty on first paint,
+  // even when monitoring starts paused. Polling timer only runs while on.
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!monitoring) return;
     const id = setInterval(refresh, POLL_MS);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [monitoring, refresh]);
 
   async function reset() {
     if (!confirm("Wipe all decisions and zone state? This can't be undone.")) return;
@@ -66,6 +73,32 @@ export function Dashboard() {
           {error && (
             <span className="hidden sm:inline-block text-xs font-mono text-red-500">{error}</span>
           )}
+          <button
+            type="button"
+            onClick={() => {
+              if (!monitoring) refresh();
+              setMonitoring((v) => !v);
+            }}
+            data-themed
+            className="inline-flex items-center gap-2 h-8 px-3 rounded-full border border-[var(--border)] bg-[var(--card)] text-xs font-medium text-[var(--fg)] hover:bg-[var(--card-soft)] transition"
+            title={monitoring ? "Pause live polling" : "Resume live polling"}
+            aria-pressed={monitoring}
+          >
+            <span
+              className={`inline-block w-2 h-2 rounded-full ${
+                monitoring ? "bg-emerald-500 animate-pulse" : "bg-zinc-400"
+              }`}
+              aria-hidden
+            />
+            {monitoring ? "Monitoring" : "Paused"}
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-[var(--muted)]">
+              {monitoring ? (
+                <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
+              ) : (
+                <path d="M8 5v14l11-7z" />
+              )}
+            </svg>
+          </button>
           <button
             type="button"
             onClick={reset}

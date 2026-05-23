@@ -7,7 +7,7 @@ import os
 import httpx
 import structlog
 
-from stadiumos_shared import AgentDecision, EmergencyTrigger
+from stadiumos_shared import AgentDecision, EmergencyTrigger, bearer_header
 from stadiumos_shared.firestore import db, write_decision
 from stadiumos_shared.pubsub import publish
 
@@ -62,6 +62,7 @@ def delegate_task(specialist: str, task: str, zone: str = "") -> dict:
                 r = client.post(
                     f"{url.rstrip('/')}/invoke",
                     json={"task": task, "zone": zone or None},
+                    headers=bearer_header(),
                 )
                 chain_response = (
                     r.json()

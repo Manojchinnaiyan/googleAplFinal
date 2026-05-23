@@ -1,4 +1,4 @@
-"""FastAPI server hosting the Emergency agent."""
+"""FastAPI server hosting the Ticketing agent."""
 
 from __future__ import annotations
 
@@ -13,28 +13,31 @@ from google.adk.runners import InMemoryRunner
 from google.genai import types
 from stadiumos_shared import require_bearer
 
-from emergency_agent.agent import emergency
+from ticketing_agent.agent import ticketing
 
 log = structlog.get_logger(__name__)
-app = FastAPI(title="StadiumOS Emergency")
-runner = InMemoryRunner(agent=emergency, app_name="emergency")
+app = FastAPI(title="StadiumOS Ticketing")
+runner = InMemoryRunner(agent=ticketing, app_name="ticketing")
 RUN_CONFIG = RunConfig(max_llm_calls=4)
+
+# Routine OK scans are filtered here so the agent only ever sees anomalies.
+INTERESTING_EVENTS = {"scan_dup", "scan_invalid", "throughput"}
 
 
 async def _run(message: str, user_id: str = "api") -> str:
     session = await runner.session_service.create_session(
-        app_name="emergency", user_id=user_id
+        app_name="ticketing", user_id=user_id
     )
     content = types.Content(role="user", parts=[types.Part(text=message)])
     out: list[str] = []
-    async for event in runner.run_async(
+    async for ev in runner.run_async(
         user_id=user_id,
         session_id=session.id,
         new_message=content,
         run_config=RUN_CONFIG,
     ):
-        if event.content and event.content.parts:
-            for part in event.content.parts:
+        if ev.content and ev.content.parts:
+            for part in ev.content.parts:
                 if part.text:
                     out.append(part.text)
     return "".join(out)
@@ -43,26 +46,25 @@ async def _run(message: str, user_id: str = "api") -> str:
 @app.get("/")
 def root() -> dict:
     return {
-        "agent": "emergency",
-        "role": "dispatches responders + notifies external agencies for stadium emergencies",
+        "agent": "ticketing",
+        "role": "reacts to gate-scan anomalies and throughput drops",
         "endpoints": {
             "GET /health": "liveness probe",
             "POST /invoke": "drive directly with {\"task\"|\"message\": ...}",
-            "POST /pubsub": "Pub/Sub push handler (emergency.trigger)",
+            "POST /pubsub": "Pub/Sub push handler (gate.event)",
         },
-        "subscribes_to": ["emergency.trigger"],
-        "publishes_to": ["agent.decision"],
+        "subscribes_to": ["gate.event"],
+        "publishes_to": ["agent.decision", "emergency.trigger"],
     }
 
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "agent": "emergency"}
+    return {"status": "ok", "agent": "ticketing"}
 
 
 @app.post("/invoke", dependencies=[Depends(require_bearer)])
 async def invoke(payload: dict) -> dict:
-    """Manual invocation for testing."""
     task = payload.get("task") or payload.get("message")
     if not task:
         raise HTTPException(400, "task or message required")
@@ -71,7 +73,6 @@ async def invoke(payload: dict) -> dict:
 
 @app.post("/pubsub")
 async def pubsub_push(request: Request) -> dict:
-    """Pub/Sub push handler for emergency.trigger events."""
     envelope = await request.json()
     msg = envelope.get("message") or {}
     data_b64 = msg.get("data")
@@ -84,21 +85,22 @@ async def pubsub_push(request: Request) -> dict:
         log.warning("bad_pubsub_payload", error=str(exc))
         return {"status": "bad_payload"}
 
-    if data.get("agent") == "emergency":
-        return {"status": "self_ignored"}
+    event_kind = data.get("event")
+    if event_kind not in INTERESTING_EVENTS:
+        return {"status": "filtered", "event": event_kind}
 
     log.info(
         "pubsub_received",
-        kind=data.get("kind"),
-        zone=data.get("zone"),
-        severity=data.get("severity"),
+        kind=event_kind,
+        gate=data.get("gate_id"),
+        ticket=data.get("ticket_id"),
     )
     prompt = (
-        "Incoming emergency.trigger event:\n"
+        "Incoming gate.event anomaly:\n"
         f"{json.dumps(data, indent=2)}\n\n"
-        "Respond per your rules. Take ONE round of tool calls, then summarise."
+        "Respond per your rules. ONE round of tool calls, then summarise."
     )
-    response = await _run(prompt, user_id=f"pubsub:emergency")
+    response = await _run(prompt, user_id="pubsub:ticketing")
     return {"status": "ok", "summary": response[:500]}
 
 

@@ -7,10 +7,11 @@ import json
 import os
 
 import structlog
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from google.adk.agents.run_config import RunConfig
 from google.adk.runners import InMemoryRunner
 from google.genai import types
+from stadiumos_shared import require_bearer
 
 from commander_agent.agent import commander
 
@@ -61,7 +62,7 @@ def health() -> dict:
     return {"status": "ok", "agent": "commander"}
 
 
-@app.post("/invoke")
+@app.post("/invoke", dependencies=[Depends(require_bearer)])
 async def invoke(payload: dict) -> dict:
     """Direct invocation — used by the dashboard or for manual testing."""
     message = payload.get("message", "")

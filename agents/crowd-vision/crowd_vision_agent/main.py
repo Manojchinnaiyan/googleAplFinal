@@ -7,11 +7,12 @@ import os
 
 import httpx
 import structlog
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from google.adk.agents.run_config import RunConfig
 from google.adk.runners import InMemoryRunner
 from google.genai import types
 from pydantic import BaseModel
+from stadiumos_shared import require_bearer
 
 from crowd_vision_agent.agent import crowd_vision
 
@@ -59,7 +60,7 @@ def health() -> dict:
     return {"status": "ok", "agent": "crowd-vision"}
 
 
-@app.post("/analyze")
+@app.post("/analyze", dependencies=[Depends(require_bearer)])
 async def analyze(req: AnalyzeRequest) -> dict:
     """Run the agent against a single frame.
 

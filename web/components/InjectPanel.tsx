@@ -113,7 +113,27 @@ export function InjectPanel({ onInjected }: { onInjected: () => void }) {
     }
   }
 
+  async function simulateGate() {
+    setBusy("simulate-gate");
+    setLast(null);
+    try {
+      const r = await fetch("/api/simulate-gate", { method: "POST" });
+      const data = await r.json();
+      setLast(
+        data.ok
+          ? `Published ${data.frames_published} gate anomalies. Ticketing agent reacting…`
+          : (data.error ?? "ok"),
+      );
+      onInjected();
+    } catch (e) {
+      setLast(`error: ${(e as Error).message}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const simulating = busy === "simulate";
+  const simulatingGate = busy === "simulate-gate";
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -140,6 +160,34 @@ export function InjectPanel({ onInjected }: { onInjected: () => void }) {
           </span>
           <span className="block text-xs text-[var(--muted)] truncate">
             Publishes 8 rising crowd frames → triggers the full agent chain
+          </span>
+        </span>
+      </button>
+
+      <button
+        type="button"
+        onClick={simulateGate}
+        disabled={busy !== null}
+        data-themed
+        className="group flex items-center gap-3 w-full text-left px-3.5 py-3 rounded-lg border border-pink-400/50 bg-pink-400/10 disabled:opacity-60 disabled:cursor-not-allowed transition"
+      >
+        <span className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-md bg-[var(--card)] text-pink-500">
+          {simulatingGate ? (
+            <Spinner />
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+              <path d="M3 10h18M8 5v14" strokeLinecap="round" />
+            </svg>
+          )}
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-semibold text-pink-500">
+            Ticketing anomaly simulator
+            {simulatingGate && <span className="ml-2 text-[10px] font-normal">running ~9s…</span>}
+          </span>
+          <span className="block text-xs text-[var(--muted)] truncate">
+            Duplicate scans + invalid ticket + gate bottleneck
           </span>
         </span>
       </button>

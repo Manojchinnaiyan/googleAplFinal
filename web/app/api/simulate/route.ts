@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firestore";
 import { publish } from "@/lib/pubsub";
+import { rateLimited } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
+const SIMULATE_COOLDOWN_MS = 30000;
 
 // Plays back a "pre-crime stampede" sequence over ~20 seconds:
 //   - 8 CrowdDensity events on `crowd.density` (Pub/Sub push -> Commander reacts)
@@ -39,6 +41,15 @@ const FRAME_INTERVAL_MS = 2200;
 const PRESSURE_AUTO_ESCALATE = 0.85;
 
 export async function POST(req: Request): Promise<NextResponse> {
+  // The simulator runs for ~18s and chains LLM calls downstream; one at a time.
+  const cooldown = rateLimited("simulate", SIMULATE_COOLDOWN_MS);
+  if (cooldown !== null) {
+    return NextResponse.json(
+      { error: "rate_limited", retry_in_seconds: cooldown },
+      { status: 429 },
+    );
+  }
+
   const body = await req.json().catch(() => ({}));
   const zone: string = body.zone ?? "north_stand";
   const camera: string = body.camera ?? "cam-ns-04";

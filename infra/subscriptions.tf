@@ -12,6 +12,11 @@ data "google_cloud_run_v2_service" "emergency" {
   location = var.region
 }
 
+data "google_cloud_run_v2_service" "ticketing" {
+  name     = "ticketing-agent"
+  location = var.region
+}
+
 data "google_project" "this" {}
 
 # Pub/Sub's own service identity needs to be allowed to mint OIDC tokens
@@ -124,6 +129,45 @@ resource "google_pubsub_subscription" "emergency_handler" {
     oidc_token {
       service_account_email = data.google_service_account.runtime.email
       audience              = data.google_cloud_run_v2_service.emergency.uri
+    }
+  }
+
+  ack_deadline_seconds       = 60
+  message_retention_duration = "600s"
+
+  retry_policy {
+    minimum_backoff = "10s"
+    maximum_backoff = "600s"
+  }
+
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.dlq.id
+    max_delivery_attempts = 5
+  }
+
+  depends_on = [google_service_account_iam_member.pubsub_token_creator]
+}
+
+# Allow the runtime SA to invoke the Ticketing service via push subscription.
+resource "google_cloud_run_v2_service_iam_member" "ticketing_invoker" {
+  name     = data.google_cloud_run_v2_service.ticketing.name
+  location = var.region
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${data.google_service_account.runtime.email}"
+}
+
+# gate.event -> Ticketing agent. The agent filters out routine scan_ok events
+# in its /pubsub handler so only anomalies hit Gemini.
+resource "google_pubsub_subscription" "ticketing_gate_event" {
+  name  = "ticketing-gate-event-handler"
+  topic = google_pubsub_topic.bus["gate.event"].name
+
+  push_config {
+    push_endpoint = "${data.google_cloud_run_v2_service.ticketing.uri}/pubsub"
+
+    oidc_token {
+      service_account_email = data.google_service_account.runtime.email
+      audience              = data.google_cloud_run_v2_service.ticketing.uri
     }
   }
 
