@@ -1,0 +1,22 @@
+# Build the Flow Router container. Run from repo root:
+#   gcloud builds submit --config agents/flow-router/cloudbuild.yaml .
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_IMAGE}
+      - -f
+      - agents/flow-router/Dockerfile
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args: [push, '${_IMAGE}']
+
+images:
+  - ${_IMAGE}
+
+substitutions:
+  _IMAGE: asia-south1-docker.pkg.dev/${PROJECT_ID}/stadiumos/flow-router:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

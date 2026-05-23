@@ -2,11 +2,28 @@
 
 from __future__ import annotations
 
+import os
+
+import httpx
+import structlog
+
 from stadiumos_shared import AgentDecision, EmergencyTrigger
 from stadiumos_shared.firestore import db, write_decision
 from stadiumos_shared.pubsub import publish
 
+log = structlog.get_logger(__name__)
+
 KNOWN_SPECIALISTS = ("crowd-vision", "flow-router", "emergency", "comms", "weather")
+
+# Per-specialist URLs. Empty string = not deployed locally; in that case we only
+# publish the delegation to the bus and let a Pub/Sub push subscription pick it up.
+SPECIALIST_URLS: dict[str, str] = {
+    "crowd-vision": os.getenv("CROWD_VISION_URL", ""),
+    "flow-router": os.getenv("FLOW_ROUTER_URL", ""),
+    "emergency": os.getenv("EMERGENCY_URL", ""),
+    "comms": os.getenv("COMMS_URL", ""),
+    "weather": os.getenv("WEATHER_URL", ""),
+}
 
 
 def delegate_task(specialist: str, task: str, zone: str = "") -> dict:
@@ -18,7 +35,9 @@ def delegate_task(specialist: str, task: str, zone: str = "") -> dict:
         zone: Optional stadium zone (e.g. 'north_stand'). Empty string if not zone-specific.
 
     Returns:
-        A dict confirming the delegation. The audit log records this decision.
+        A dict with the delegation result. When a URL is configured for the
+        specialist, includes its synchronous response so the Commander can
+        summarise the whole chain to the caller.
     """
     if specialist not in KNOWN_SPECIALISTS:
         return {
@@ -34,7 +53,31 @@ def delegate_task(specialist: str, task: str, zone: str = "") -> dict:
     )
     write_decision(decision)
     publish("agent.decision", decision, target=specialist)
-    return {"delegated_to": specialist, "task": task, "zone": zone or None}
+
+    chain_response: dict | None = None
+    url = SPECIALIST_URLS.get(specialist) or ""
+    if url:
+        try:
+            with httpx.Client(timeout=90.0) as client:
+                r = client.post(
+                    f"{url.rstrip('/')}/invoke",
+                    json={"task": task, "zone": zone or None},
+                )
+                chain_response = (
+                    r.json()
+                    if r.headers.get("content-type", "").startswith("application/json")
+                    else {"status_code": r.status_code, "text": r.text[:200]}
+                )
+        except httpx.RequestError as exc:
+            log.warning("specialist_unreachable", specialist=specialist, error=str(exc))
+            chain_response = {"error": "specialist_unreachable", "details": str(exc)}
+
+    return {
+        "delegated_to": specialist,
+        "task": task,
+        "zone": zone or None,
+        "chain_response": chain_response,
+    }
 
 
 def query_zone_state(zone: str) -> dict:
