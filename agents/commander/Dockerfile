@@ -16,4 +16,4 @@ RUN pip install /app/shared && pip install /app/commander
 
 EXPOSE 8080
 
-CMD ["uvicorn", "agent.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "commander_agent.main:app", "--host", "0.0.0.0", "--port", "8080"]

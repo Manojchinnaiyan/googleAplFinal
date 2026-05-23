@@ -2,7 +2,7 @@
 
 from google.adk.agents import Agent
 
-from agent.tools import delegate_task, escalate_emergency, query_zone_state
+from commander_agent.tools import delegate_task, escalate_emergency, query_zone_state
 
 SYSTEM_INSTRUCTION = """You are the StadiumOS Commander overseeing a cricket stadium of ~80,000 fans.
 

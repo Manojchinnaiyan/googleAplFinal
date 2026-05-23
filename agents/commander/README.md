@@ -27,7 +27,7 @@ pip install -e shared -e agents/commander
 # .env values
 export $(grep -v '^#' .env.example | xargs)
 
-uvicorn agent.main:app --reload --port 8080 --app-dir agents/commander
+uvicorn commander_agent.main:app --reload --port 8080 --app-dir agents/commander
 ```
 
 Smoke test:

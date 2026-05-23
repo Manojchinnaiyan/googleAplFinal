@@ -12,7 +12,7 @@ from google.adk.agents.run_config import RunConfig
 from google.adk.runners import InMemoryRunner
 from google.genai import types
 
-from agent.agent import commander
+from commander_agent.agent import commander
 
 log = structlog.get_logger(__name__)
 app = FastAPI(title="StadiumOS Commander")
