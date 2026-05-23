@@ -18,6 +18,20 @@ runner = InMemoryRunner(agent=flow_router, app_name="flow_router")
 RUN_CONFIG = RunConfig(max_llm_calls=5)
 
 
+@app.get("/")
+def root() -> dict:
+    return {
+        "agent": "flow-router",
+        "role": "computes safe crowd redirections across the stadium graph",
+        "endpoints": {
+            "GET /health": "liveness probe",
+            "POST /invoke": "execute a routing task; body: {task, zone}",
+        },
+        "publishes_to": ["agent.decision"],
+        "updates_firestore": ["zones/<zone>.active_route_plan"],
+    }
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "agent": "flow-router"}

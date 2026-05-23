@@ -41,6 +41,21 @@ async def _run(message: str, user_id: str = "api") -> str:
     return "".join(text_out)
 
 
+@app.get("/")
+def root() -> dict:
+    return {
+        "agent": "commander",
+        "role": "orchestrator",
+        "endpoints": {
+            "GET /health": "liveness probe",
+            "POST /invoke": "drive the agent directly with {\"message\": ...}",
+            "POST /pubsub": "Pub/Sub push subscription handler",
+        },
+        "subscribes_to": ["crowd.density", "emergency.trigger", "agent.decision"],
+        "publishes_to": ["agent.decision", "emergency.trigger"],
+    }
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "agent": "commander"}

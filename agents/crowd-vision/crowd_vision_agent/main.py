@@ -41,6 +41,19 @@ async def _fetch_image(req: AnalyzeRequest) -> tuple[bytes, str]:
     raise HTTPException(400, "image_url or image_b64 required")
 
 
+@app.get("/")
+def root() -> dict:
+    return {
+        "agent": "crowd-vision",
+        "role": "extracts density + stampede precursors from a stadium camera frame",
+        "endpoints": {
+            "GET /health": "liveness probe",
+            "POST /analyze": "analyze a single frame; body: {zone, source_camera, image_url|image_b64}",
+        },
+        "publishes_to": ["crowd.density", "agent.decision", "emergency.trigger"],
+    }
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "agent": "crowd-vision"}
