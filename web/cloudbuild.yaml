@@ -1,0 +1,21 @@
+# Build the StadiumOS dashboard. Run from repo root:
+#   gcloud builds submit --config web/cloudbuild.yaml .
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/stadiumos/dashboard:latest
+      - -f
+      - web/Dockerfile
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/stadiumos/dashboard:latest
+
+images:
+  - asia-south1-docker.pkg.dev/$PROJECT_ID/stadiumos/dashboard:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
