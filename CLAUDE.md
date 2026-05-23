@@ -19,13 +19,13 @@ Comms, Weather, Ticketing, Fan Concierge). Each specialist is independently depl
 ```
 
 ## Stack
-- **Agents:** Python 3.11, Google ADK (Agent Development Kit), Vertex AI, Gemini 2.5 Pro/Flash
+- **Agents:** Python 3.12, Google ADK (Agent Development Kit), Vertex AI, Gemini 2.5 Pro/Flash
 - **Backend events:** Cloud Pub/Sub, Cloud Run (one service per agent), Eventarc
 - **State:** Firestore (live), BigQuery (analytics)
 - **Dashboard:** Next.js 15 (App Router), Deck.gl for the digital twin, Tailwind
 - **Fan app:** Firebase (Auth + FCM + Firestore listeners)
 - **Voice:** Gemini Live API
-- **Infra:** Terraform, region `asia-south1` (Mumbai)
+- **Infra:** Terraform, region `asia-south1` (Mumbai). Vertex AI uses `us-central1` (Gemini 2.5 isn't in asia-south1 yet) — cross-region call, ~100ms.
 
 ## Repo Layout
 ```

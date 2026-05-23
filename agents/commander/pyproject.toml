@@ -1,13 +1,16 @@
 [project]
-name = "stadiumos-shared"
+name = "stadiumos-commander"
 version = "0.1.0"
-description = "Shared events, Pub/Sub, and Firestore helpers for StadiumOS agents"
+description = "StadiumOS Commander Agent — orchestrates specialists"
 requires-python = ">=3.12"
 dependencies = [
-    "pydantic>=2.7",
-    "google-cloud-pubsub>=2.23",
-    "google-cloud-firestore>=2.16",
+    "google-adk>=0.5.0",
+    "google-cloud-aiplatform>=1.60",
+    "google-genai>=1.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.30",
     "structlog>=24.1",
+    "stadiumos-shared",
 ]
 
 [build-system]
@@ -15,7 +18,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["stadiumos_shared"]
+packages = ["agent"]
 
 [tool.ruff]
 line-length = 100

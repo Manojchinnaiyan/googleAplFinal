@@ -48,8 +48,10 @@ gha-creds-*.json
 *.swp
 .DS_Store
 
-# Claude local overrides
+# Claude local overrides + harness state
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/*.lock
 
 # Hackathon source images (not code)
 IMG_*.JPG

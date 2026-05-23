@@ -18,7 +18,7 @@ and choreographs emergency response — all visible on a live digital-twin dashb
 - `scripts/simulators/` — local demo data generators (CCTV frames, ticket scans)
 
 ## Stack
-Python 3.11 · Google ADK · Gemini 2.5 · Vertex AI · Cloud Run · Pub/Sub · Firestore
+Python 3.12 · Google ADK · Gemini 2.5 · Vertex AI · Cloud Run · Pub/Sub · Firestore
 · Next.js 15 · Deck.gl · Terraform · `asia-south1`
 
 ## Quick Start
