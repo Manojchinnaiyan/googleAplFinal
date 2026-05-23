@@ -9,7 +9,16 @@ const ARROW_RADIUS = 130;
 const LABEL_RADIUS = 198;
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const;
 
-function occColor(o: number | undefined): string {
+function zoneColor(z: Zone | undefined): string {
+  if (!z) return "var(--occ-empty)";
+  // Actionable state trumps raw occupancy — a zone with an active dispatch or
+  // lockdown is critical even if its occupancy reading is stale/missing,
+  // otherwise the SVG ends up green while the badge screams AT RISK.
+  if (z.lockdown?.active || z.active_dispatch) return "var(--occ-critical)";
+  if (z.active_route_plan) return "var(--occ-high)";
+  if ((z.pressure_index ?? 0) >= 0.85) return "var(--occ-critical)";
+  if ((z.pressure_index ?? 0) >= 0.6) return "var(--occ-high)";
+  const o = z.occupancy;
   if (o === undefined || o === null) return "var(--occ-empty)";
   if (o < 0.5) return "var(--occ-low)";
   if (o < 0.75) return "var(--occ-mid)";
@@ -81,7 +90,7 @@ export function Stadium({ zones }: { zones: Zone[] }) {
         const startAngle = i * 45 - 22.5;
         const endAngle = startAngle + 45;
         const z = byId.get(zoneId);
-        const fill = occColor(z?.occupancy);
+        const fill = zoneColor(z);
         const pressure = z?.pressure_index ?? 0;
         const dangerous = pressure >= 0.6;
         const atRisk = !!z?.active_route_plan;

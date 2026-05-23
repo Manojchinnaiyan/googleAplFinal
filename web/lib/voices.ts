@@ -11,18 +11,33 @@
 // fires "voiceschanged" once the list is populated, so callers must wait
 // for it. waitForVoices() handles that.
 
+// Male voices ranked first per ops-room preference. Female voices are still
+// fallbacks if no male voice exists on the user's machine.
 const HIGH_QUALITY_PATTERNS = [
+  // High-quality male voices
+  /microsoft.*guy.*online/i,
+  /microsoft.*ryan.*online/i,
+  /microsoft.*davis.*online/i,
+  /microsoft.*tony.*online/i,
+  /microsoft.*brandon.*online/i,
+  /google\s+uk\s+english\s+male/i,
+  /google\s+us\s+english\s+male/i,
+  /^daniel$/i,
+  /^alex$/i,
+  /^tom$/i,
+  /^aaron$/i,
+  /^fred$/i,
+  /^oliver$/i,
+  /^rishi$/i,
+  // High-quality female fallbacks
   /microsoft.*aria.*online/i,
   /microsoft.*jenny.*online/i,
-  /microsoft.*guy.*online/i,
-  /google\s+us\s+english/i,
   /google\s+uk\s+english\s+female/i,
-  /google\s+uk\s+english\s+male/i,
-  /samantha/i,
-  /karen/i,
-  /allison/i,
-  /tom/i,
-  /aaron/i,
+  /google\s+us\s+english/i,
+  /^samantha$/i,
+  /^karen$/i,
+  /^allison$/i,
+  // Generic premium tier
   /natural/i,
   /premium/i,
   /enhanced/i,
