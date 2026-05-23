@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { bearerHeader } from "@/lib/auth";
 import { db } from "@/lib/firestore";
 import { publish } from "@/lib/pubsub";
 import { rateLimited } from "@/lib/ratelimit";
@@ -54,6 +55,46 @@ export async function POST(req: Request): Promise<NextResponse> {
   const zone: string = body.zone ?? "north_stand";
   const camera: string = body.camera ?? "cam-ns-04";
 
+  // Pull all 5 agents into the chain on a single click:
+  //
+  // 1. Crowd Vision: fire-and-forget POST to /analyze with a sample frame
+  //    bundled in /public. Gemini Vision analyses it; the agent publishes
+  //    its own crowd.density + agent.decision rows. Takes ~10-15s but
+  //    runs in parallel with the synthetic frame timeline below.
+  const crowdVisionUrl = process.env.CROWD_VISION_URL;
+  if (crowdVisionUrl) {
+    const origin = new URL(req.url).origin;
+    fetch(`${crowdVisionUrl.replace(/\/$/, "")}/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...bearerHeader() },
+      body: JSON.stringify({
+        zone,
+        source_camera: camera,
+        image_url: `${origin}/sample-frame.jpg`,
+      }),
+      signal: AbortSignal.timeout(45_000),
+    }).catch(() => {
+      /* don't fail the simulator if Crowd Vision is slow */
+    });
+  }
+
+  // 2. Ticketing: two gate.event anomalies — a duplicate scan from a shared
+  //    QR plus a throughput drop on a backed-up gate. Gives Ticketing a
+  //    reason to log + request more staff at that gate.
+  const tsNow = new Date().toISOString();
+  publish("gate.event", {
+    gate_id: "gate_3",
+    event: "scan_dup",
+    ticket_id: "T-9921",
+    ts: tsNow,
+  }).catch(() => {});
+  publish("gate.event", {
+    gate_id: "gate_4",
+    event: "throughput",
+    throughput_per_min: 80,
+    ts: tsNow,
+  }).catch(() => {});
+
   const messageIds: string[] = [];
   let emergencyFired = false;
 
@@ -108,6 +149,10 @@ export async function POST(req: Request): Promise<NextResponse> {
     frames_published: FRAMES.length,
     emergency_fired: emergencyFired,
     message_ids: messageIds,
-    note: "Commander reacts via the Pub/Sub push subscription. Watch the activity feed.",
+    crowd_vision_kicked: Boolean(crowdVisionUrl),
+    gate_events_published: 2,
+    note: "Crowd Vision analyses a real frame, Ticketing reacts to gate anomalies, "
+        + "Commander delegates to Flow Router, Emergency dispatches responders. "
+        + "All 5 agents appear in the feed.",
   });
 }

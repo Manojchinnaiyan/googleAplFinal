@@ -6,6 +6,7 @@ import { Stadium } from "./Stadium";
 import { ActivityFeed } from "./ActivityFeed";
 import { InjectPanel } from "./InjectPanel";
 import { ThemeToggle } from "./ThemeToggle";
+import { SpeechToggle } from "./SpeechToggle";
 
 const STATE_POLL_MS = 1500;
 const AGENTS_POLL_MS = 8000;
@@ -18,6 +19,7 @@ export function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
   const [monitoring, setMonitoring] = useState(true);
+  const [speaking, setSpeaking] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -136,6 +138,7 @@ export function Dashboard() {
             </svg>
             {resetting ? "Resetting…" : "Reset demo"}
           </button>
+          <SpeechToggle enabled={speaking} setEnabled={setSpeaking} decisions={state.decisions} />
           <ThemeToggle />
         </div>
 
