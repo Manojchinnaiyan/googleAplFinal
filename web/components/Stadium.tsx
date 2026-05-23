@@ -2,18 +2,18 @@
 
 import { ALL_ZONES, type Zone } from "@/lib/types";
 
-// Polar layout: zone i sits at angle (i * 45° - 90°), so index 0 is at 12 o'clock.
-const CENTER = 200;
-const RADIUS = 130;
-const SEGMENT_OUTER = 175;
-const SEGMENT_INNER = 95;
+const CENTER = 220;
+const SEGMENT_OUTER = 195;
+const SEGMENT_INNER = 110;
+const ARROW_RADIUS = 145;
+const LABEL_RADIUS = 210;
 
-function occupancyColor(o: number | undefined): string {
-  if (o === undefined || o === null) return "#1f2937"; // zinc-800
-  if (o < 0.5) return "#10b981"; // green
-  if (o < 0.75) return "#f59e0b"; // amber
-  if (o < 0.9) return "#f97316"; // orange
-  return "#ef4444"; // red
+function occColor(o: number | undefined): string {
+  if (o === undefined || o === null) return "var(--occ-empty)";
+  if (o < 0.5) return "var(--occ-low)";
+  if (o < 0.75) return "var(--occ-mid)";
+  if (o < 0.9) return "var(--occ-high)";
+  return "var(--occ-critical)";
 }
 
 function polar(angleDeg: number, r: number): [number, number] {
@@ -31,79 +31,75 @@ function arcPath(startAngle: number, endAngle: number): string {
     `A ${SEGMENT_OUTER} ${SEGMENT_OUTER} 0 0 1 ${x2o} ${y2o}`,
     `L ${x2i} ${y2i}`,
     `A ${SEGMENT_INNER} ${SEGMENT_INNER} 0 0 0 ${x1i} ${y1i}`,
-    `Z`,
+    "Z",
   ].join(" ");
 }
 
-function shortLabel(zone: string): string {
-  return zone.replace("_stand", "").replace("_", " ").toUpperCase();
+function prettyZone(zone: string): { line1: string; line2: string } {
+  const parts = zone.replace("_stand", "").split("_");
+  if (parts.length === 1) return { line1: parts[0].toUpperCase(), line2: "" };
+  return { line1: parts.join(" ").toUpperCase(), line2: "" };
 }
 
 export function Stadium({ zones }: { zones: Zone[] }) {
   const byId = new Map(zones.map((z) => [z.zone, z]));
 
   return (
-    <svg viewBox="0 0 400 400" className="w-full max-w-[520px] mx-auto">
+    <svg
+      viewBox="0 0 440 440"
+      className="w-full max-w-[560px] mx-auto select-none"
+      role="img"
+      aria-label="Stadium digital twin"
+    >
       <defs>
         <radialGradient id="pitch" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#16a34a" />
-          <stop offset="100%" stopColor="#065f46" />
+          <stop offset="0%" stopColor="#22c55e" />
+          <stop offset="100%" stopColor="#15803d" />
         </radialGradient>
+        <radialGradient id="ring-shadow" cx="50%" cy="50%" r="60%">
+          <stop offset="60%" stopColor="rgba(0,0,0,0)" />
+          <stop offset="100%" stopColor="rgba(0,0,0,0.25)" />
+        </radialGradient>
+        <marker
+          id="arrow-head"
+          viewBox="0 0 10 10"
+          refX="8.5"
+          refY="5"
+          markerWidth="8"
+          markerHeight="8"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--arrow)" />
+        </marker>
       </defs>
 
+      <circle cx={CENTER} cy={CENTER} r={SEGMENT_OUTER + 12} fill="url(#ring-shadow)" />
+
       {/* Pitch */}
-      <circle cx={CENTER} cy={CENTER} r={SEGMENT_INNER - 5} fill="url(#pitch)" opacity={0.85} />
-      <rect
-        x={CENTER - 10}
-        y={CENTER - 35}
-        width={20}
-        height={70}
-        fill="#fde68a"
-        opacity={0.6}
-      />
+      <circle cx={CENTER} cy={CENTER} r={SEGMENT_INNER - 8} fill="url(#pitch)" />
+      <ellipse cx={CENTER} cy={CENTER} rx={48} ry={20} fill="none" stroke="#bbf7d0" strokeOpacity={0.55} strokeWidth={1.5} />
+      <line x1={CENTER} y1={CENTER - 30} x2={CENTER} y2={CENTER + 30} stroke="#fde68a" strokeOpacity={0.7} strokeWidth={3} />
+      <circle cx={CENTER} cy={CENTER} r={4} fill="#fde68a" opacity={0.8} />
 
       {/* Stand segments */}
       {ALL_ZONES.map((zoneId, i) => {
         const startAngle = i * 45 - 22.5;
         const endAngle = startAngle + 45;
         const z = byId.get(zoneId);
-        const color = occupancyColor(z?.occupancy);
+        const fill = occColor(z?.occupancy);
         const pressure = z?.pressure_index ?? 0;
         const dangerous = pressure >= 0.6;
-        const [lx, ly] = polar(startAngle + 22.5, (SEGMENT_OUTER + SEGMENT_INNER) / 2);
 
         return (
-          <g key={zoneId}>
-            <path
-              d={arcPath(startAngle, endAngle)}
-              fill={color}
-              stroke="#0a0a0a"
-              strokeWidth={2}
-              opacity={dangerous ? 0.95 : 0.85}
-              className={dangerous ? "animate-pulse" : ""}
-            />
-            <text
-              x={lx}
-              y={ly}
-              fontSize={10}
-              fontWeight={700}
-              textAnchor="middle"
-              fill="#0a0a0a"
-              dominantBaseline="middle"
-            >
-              {shortLabel(zoneId)}
-            </text>
-            <text
-              x={lx}
-              y={ly + 12}
-              fontSize={9}
-              textAnchor="middle"
-              fill="#0a0a0a"
-              opacity={0.75}
-            >
-              {z?.occupancy !== undefined ? `${Math.round(z.occupancy * 100)}%` : "—"}
-            </text>
-          </g>
+          <path
+            key={`seg-${zoneId}`}
+            d={arcPath(startAngle, endAngle)}
+            fill={fill}
+            stroke="var(--bg)"
+            strokeWidth={2}
+            opacity={z?.occupancy === undefined ? 0.55 : 1}
+            className={dangerous ? "danger-pulse" : undefined}
+          />
         );
       })}
 
@@ -112,42 +108,70 @@ export function Stadium({ zones }: { zones: Zone[] }) {
         const z = byId.get(zoneId);
         const plan = z?.active_route_plan;
         if (!plan?.redirect_to_zones?.length) return [];
-        const [fx, fy] = polar(i * 45, RADIUS);
+        const [fx, fy] = polar(i * 45, ARROW_RADIUS);
         return plan.redirect_to_zones.map((target) => {
           const j = ALL_ZONES.indexOf(target as (typeof ALL_ZONES)[number]);
           if (j < 0) return null;
-          const [tx, ty] = polar(j * 45, RADIUS);
+          const [tx, ty] = polar(j * 45, ARROW_RADIUS);
+          // Curve via a control point near the pitch.
+          const cx = (fx + tx) / 2 + (CENTER - (fx + tx) / 2) * 0.4;
+          const cy = (fy + ty) / 2 + (CENTER - (fy + ty) / 2) * 0.4;
           return (
-            <g key={`${zoneId}->${target}`}>
-              <line
-                x1={fx}
-                y1={fy}
-                x2={tx}
-                y2={ty}
-                stroke="#38bdf8"
-                strokeWidth={3}
-                strokeDasharray="6 4"
-                markerEnd="url(#arrow)"
-                className="animate-pulse"
-              />
-            </g>
+            <path
+              key={`arrow-${zoneId}->${target}`}
+              d={`M ${fx} ${fy} Q ${cx} ${cy} ${tx} ${ty}`}
+              fill="none"
+              stroke="var(--arrow)"
+              strokeWidth={3}
+              strokeDasharray="6 5"
+              strokeLinecap="round"
+              markerEnd="url(#arrow-head)"
+              className="danger-pulse"
+            />
           );
         });
       })}
 
-      <defs>
-        <marker
-          id="arrow"
-          viewBox="0 0 10 10"
-          refX="8"
-          refY="5"
-          markerWidth="6"
-          markerHeight="6"
-          orient="auto-start-reverse"
-        >
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#38bdf8" />
-        </marker>
-      </defs>
+      {/* Labels — placed OUTSIDE the ring so they never overlap segments */}
+      {ALL_ZONES.map((zoneId, i) => {
+        const z = byId.get(zoneId);
+        const angle = i * 45;
+        const [lx, ly] = polar(angle, LABEL_RADIUS);
+        const { line1 } = prettyZone(zoneId);
+        const occ = z?.occupancy;
+        const occText = occ !== undefined ? `${Math.round(occ * 100)}%` : "—";
+
+        // Push labels at the corners slightly out so they don't crowd the ring.
+        const anchor = angle === 0 || angle === 180 ? "middle" : angle < 180 ? "start" : "end";
+
+        return (
+          <g key={`label-${zoneId}`}>
+            <text
+              x={lx}
+              y={ly}
+              fontSize={11}
+              fontWeight={700}
+              letterSpacing={0.8}
+              textAnchor={anchor}
+              fill="var(--fg)"
+              dominantBaseline="middle"
+            >
+              {line1}
+            </text>
+            <text
+              x={lx}
+              y={ly + 14}
+              fontSize={10}
+              textAnchor={anchor}
+              fill="var(--muted)"
+              fontFamily="var(--font-geist-mono)"
+              dominantBaseline="middle"
+            >
+              {occText}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }

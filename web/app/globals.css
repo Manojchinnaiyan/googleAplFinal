@@ -1,26 +1,104 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Manual dark-mode toggle: applies when `.dark` is on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-bg-soft: var(--bg-soft);
+  --color-card: var(--card);
+  --color-card-soft: var(--card-soft);
+  --color-border: var(--border);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Light theme (default) */
+:root {
+  --bg: #fafaf9;
+  --bg-soft: #f5f5f4;
+  --card: #ffffff;
+  --card-soft: #f8fafc;
+  --border: #e7e5e4;
+  --fg: #18181b;
+  --muted: #57534e;
+  --subtle: #a8a29e;
+  --accent: #6366f1;
+  --accent-soft: rgba(99, 102, 241, 0.12);
+
+  /* Zone occupancy palette (used by Stadium SVG) */
+  --occ-empty: #d4d4d8;
+  --occ-low: #22c55e;
+  --occ-mid: #f59e0b;
+  --occ-high: #f97316;
+  --occ-critical: #ef4444;
+
+  /* Routing arrow */
+  --arrow: #0ea5e9;
+}
+
+/* Dark theme */
+.dark {
+  --bg: #09090b;
+  --bg-soft: #0c0c0e;
+  --card: #18181b;
+  --card-soft: #1c1c20;
+  --border: #27272a;
+  --fg: #fafafa;
+  --muted: #a1a1aa;
+  --subtle: #71717a;
+  --accent: #818cf8;
+  --accent-soft: rgba(129, 140, 248, 0.16);
+
+  --occ-empty: #3f3f46;
+  --occ-low: #10b981;
+  --occ-mid: #f59e0b;
+  --occ-high: #f97316;
+  --occ-critical: #ef4444;
+
+  --arrow: #38bdf8;
+}
+
+html {
+  background: var(--bg);
+  color: var(--fg);
+  color-scheme: light dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Smooth theme transitions for the surfaces that change. */
+body,
+[data-themed] {
+  transition: background-color 180ms ease, border-color 180ms ease, color 120ms ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fade-in 200ms ease-out both;
+}
+
+/* Subtle pulse for danger zones — replaces Tailwind's animate-pulse for a smoother look. */
+@keyframes danger-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.65; }
+}
+
+.danger-pulse {
+  animation: danger-pulse 1.4s ease-in-out infinite;
 }

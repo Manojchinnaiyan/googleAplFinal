@@ -1,0 +1,21 @@
+# Build the Emergency container. Run from repo root:
+#   gcloud builds submit --config agents/emergency/cloudbuild.yaml .
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/stadiumos/emergency:latest
+      - -f
+      - agents/emergency/Dockerfile
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - asia-south1-docker.pkg.dev/$PROJECT_ID/stadiumos/emergency:latest
+
+images:
+  - asia-south1-docker.pkg.dev/$PROJECT_ID/stadiumos/emergency:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

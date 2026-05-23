@@ -7,6 +7,11 @@ data "google_cloud_run_v2_service" "commander" {
   location = var.region
 }
 
+data "google_cloud_run_v2_service" "emergency" {
+  name     = "emergency-agent"
+  location = var.region
+}
+
 data "google_project" "this" {}
 
 # Pub/Sub's own service identity needs to be allowed to mint OIDC tokens
@@ -97,4 +102,43 @@ resource "google_pubsub_topic_iam_member" "dlq_publisher" {
   topic  = google_pubsub_topic.dlq.name
   role   = "roles/pubsub.publisher"
   member = "serviceAccount:service-${data.google_project.this.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
+# Allow the runtime SA to invoke the Emergency service via push subscription.
+resource "google_cloud_run_v2_service_iam_member" "emergency_invoker" {
+  name     = data.google_cloud_run_v2_service.emergency.name
+  location = var.region
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${data.google_service_account.runtime.email}"
+}
+
+# emergency.trigger -> Emergency agent (independent from Commander's subscription;
+# both agents react to the same event in parallel).
+resource "google_pubsub_subscription" "emergency_handler" {
+  name  = "emergency-trigger-handler"
+  topic = google_pubsub_topic.bus["emergency.trigger"].name
+
+  push_config {
+    push_endpoint = "${data.google_cloud_run_v2_service.emergency.uri}/pubsub"
+
+    oidc_token {
+      service_account_email = data.google_service_account.runtime.email
+      audience              = data.google_cloud_run_v2_service.emergency.uri
+    }
+  }
+
+  ack_deadline_seconds       = 60
+  message_retention_duration = "600s"
+
+  retry_policy {
+    minimum_backoff = "10s"
+    maximum_backoff = "600s"
+  }
+
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.dlq.id
+    max_delivery_attempts = 5
+  }
+
+  depends_on = [google_service_account_iam_member.pubsub_token_creator]
 }
