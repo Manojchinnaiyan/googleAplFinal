@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+.next/
+out/
+.turbo/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Terraform / OpenTofu
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!example.tfvars
+tfplan
+# Note: .terraform.lock.hcl IS committed (provider version lock)
+
+# GCP / secrets
+*-service-account.json
+*-key.json
+.env
+.env.local
+.env.*.local
+gha-creds-*.json
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Claude local overrides
+.claude/settings.local.json
+
+# Hackathon source images (not code)
+IMG_*.JPG
+IMG_*.jpg
